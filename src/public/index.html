@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI代码审查工具 - 内网穿透管理</title>
+  <title>AI代码审查工具</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -33,9 +33,6 @@
     .status-online {
       background-color: #4CAF50;
     }
-    .status-offline {
-      background-color: #F44336;
-    }
     .btn {
       background-color: #4CAF50;
       border: none;
@@ -49,9 +46,6 @@
       cursor: pointer;
       border-radius: 4px;
     }
-    .btn-danger {
-      background-color: #F44336;
-    }
     .btn-secondary {
       background-color: #2196F3;
     }
@@ -63,60 +57,33 @@
       margin: 10px 0;
       word-break: break-all;
     }
-    .hidden {
-      display: none;
-    }
-    #loading {
-      margin: 20px 0;
-    }
-    .region-selector {
-      margin: 10px 0;
-    }
-    select {
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-    }
   </style>
 </head>
 <body>
-  <h1>AI代码审查工具 - 内网穿透管理</h1>
+  <h1>AI代码审查工具</h1>
   
   <div class="card">
-    <h2>隧道状态</h2>
+    <h2>服务状态</h2>
     <div class="status">
-      <div id="status-indicator" class="status-indicator status-offline"></div>
-      <span id="status-text">正在加载...</span>
+      <div class="status-indicator status-online"></div>
+      <span>在线</span>
     </div>
     
-    <div id="tunnel-info" class="hidden">
-      <p><strong>公网地址:</strong></p>
-      <div id="tunnel-url" class="url-box">-</div>
-      
-      <p><strong>Webhook URLs:</strong></p>
-      <div>
-        <p>GitHub:</p>
-        <div id="github-webhook-url" class="url-box">-</div>
-        <p>GitLab:</p>
-        <div id="gitlab-webhook-url" class="url-box">-</div>
-      </div>
-    </div>
-    
-    <div id="loading" class="hidden">
-      <p>处理中，请稍候...</p>
-    </div>
-    
-    <div id="actions">
-      <button id="btn-restart" class="btn btn-secondary">重启隧道</button>
+    <p><strong>本地Webhook URLs:</strong></p>
+    <div>
+      <p>GitHub:</p>
+      <div id="github-webhook-url" class="url-box">http://localhost:3000/webhook/github</div>
+      <p>GitLab:</p>
+      <div id="gitlab-webhook-url" class="url-box">http://localhost:3000/webhook/gitlab</div>
     </div>
   </div>
   
   <div class="card">
     <h2>使用说明</h2>
-    <p>本工具通过ngrok内网穿透技术，将本地运行的AI代码审查服务暴露到公网，以便接收GitHub或GitLab的Webhook通知。</p>
+    <p>本工具提供AI代码审查服务，可以接收GitHub或GitLab的Webhook通知。</p>
     <p><strong>配置步骤:</strong></p>
     <ol>
-      <li>确保服务正常运行，并且隧道状态为"在线"</li>
+      <li>确保服务正常运行</li>
       <li>复制对应的Webhook URL（GitHub或GitLab）</li>
       <li>在您的代码仓库设置中，添加Webhook，粘贴上面的URL</li>
       <li>选择"push"事件作为触发条件</li>
@@ -124,97 +91,23 @@
     </ol>
     <p><strong>注意事项:</strong></p>
     <ul>
-      <li>服务使用亚太地区(中国)的ngrok服务器</li>
-      <li>如果连接不稳定，可以尝试重启隧道</li>
-      <li>所有人都可以直接访问生成的URL，无需密码</li>
+      <li>本服务默认运行在本地，如需公网访问，请自行配置反向代理</li>
+      <li>确保防火墙没有阻止GitHub或GitLab的请求</li>
     </ul>
   </div>
 
   <script>
-    // 获取元素
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    const tunnelInfo = document.getElementById('tunnel-info');
-    const tunnelUrl = document.getElementById('tunnel-url');
-    const githubWebhookUrl = document.getElementById('github-webhook-url');
-    const gitlabWebhookUrl = document.getElementById('gitlab-webhook-url');
-    const loading = document.getElementById('loading');
-    const btnRestart = document.getElementById('btn-restart');
-    
-    // 获取隧道状态
-    async function getTunnelStatus() {
-      try {
-        const response = await fetch('/tunnel/status');
-        const data = await response.json();
-        
-        updateUI(data);
-      } catch (error) {
-        console.error('获取隧道状态失败:', error);
-        statusText.textContent = '获取状态失败';
-      }
-    }
-    
-    // 更新UI
-    function updateUI(data) {
-      if (data.isConnected) {
-        statusIndicator.className = 'status-indicator status-online';
-        statusText.textContent = '在线';
-        tunnelInfo.classList.remove('hidden');
-        
-        tunnelUrl.textContent = data.tunnelUrl;
-        githubWebhookUrl.textContent = `${data.tunnelUrl}/webhook/github`;
-        gitlabWebhookUrl.textContent = `${data.tunnelUrl}/webhook/gitlab`;
-      } else {
-        statusIndicator.className = 'status-indicator status-offline';
-        statusText.textContent = '离线';
-        tunnelInfo.classList.add('hidden');
-      }
-    }
-    
-    // 重启隧道
-    async function restartTunnel() {
-      setLoading(true);
+    // 动态更新Webhook URL
+    function updateWebhookUrls() {
+      const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+      const baseUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
       
-      try {
-        const response = await fetch('/tunnel/restart', {
-          method: 'POST'
-        });
-        const data = await response.json();
-        
-        if (data.success) {
-          getTunnelStatus();
-        } else {
-          alert('重启隧道失败: ' + data.message);
-        }
-      } catch (error) {
-        console.error('重启隧道失败:', error);
-        alert('重启隧道失败，请查看控制台获取详细信息');
-      } finally {
-        setLoading(false);
-      }
+      document.getElementById('github-webhook-url').textContent = `${baseUrl}/webhook/github`;
+      document.getElementById('gitlab-webhook-url').textContent = `${baseUrl}/webhook/gitlab`;
     }
-    
-    // 移除更新区域功能
-    
-    // 设置加载状态
-    function setLoading(isLoading) {
-      if (isLoading) {
-        loading.classList.remove('hidden');
-        btnRestart.disabled = true;
-      } else {
-        loading.classList.add('hidden');
-        btnRestart.disabled = false;
-      }
-    }
-    
-    // 事件监听
-    btnRestart.addEventListener('click', restartTunnel);
     
     // 初始化
-    getTunnelStatus();
-    
-    // 定期刷新状态
-    setInterval(getTunnelStatus, 30000); // 每30秒刷新一次
+    updateWebhookUrls();
   </script>
 </body>
 </html>
