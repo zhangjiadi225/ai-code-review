@@ -189,32 +189,59 @@ async function processGitHubCommit(repository, commit) {
 	console.log(`处理GitHub提交: ${commit.id}`)
 	console.log('commit', commit)
 
-	// 获取完整的commit内容
-	const commitDetails = await githubService.getCommitDetails(
-		repository.owner.login || repository.owner.name,
-		repository.name,
-		commit.id
-	)
+	let commitDetails = null
+	let diff = []
+	let parentCommitSha = null
+	let fileContexts = {}
 
-	// 获取提交的diff
-	const diff = await githubService.getCommitDiff(
-		repository.owner.login || repository.owner.name,
-		repository.name,
-		commit.id,
-		commit // 传递webhook提供的文件信息
-	)
-
-	if (!diff || diff.length === 0) {
-		console.log('提交没有代码变更')
-		return
+	try {
+		// 获取完整的commit内容
+		commitDetails = await githubService.getCommitDetails(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit.id
+		)
+	} catch (error) {
+		console.warn('获取commit详情失败，使用webhook数据:', error.message)
 	}
 
-	// 获取父提交SHA，用于获取上下文
-	const parentCommitSha = await githubService.getParentCommitSha(
-		repository.owner.login || repository.owner.name,
-		repository.name,
-		commit.id
-	)
+	try {
+		// 获取提交的diff
+		diff = await githubService.getCommitDiff(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit.id,
+			commit // 传递webhook提供的文件信息
+		)
+	} catch (error) {
+		console.warn('获取diff失败，使用基本文件信息:', error.message)
+		// 创建基本的diff信息
+		diff = createBasicDiffFromWebhook(commit)
+	}
+
+	try {
+		// 获取父提交SHA，用于获取上下文
+		parentCommitSha = await githubService.getParentCommitSha(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit.id
+		)
+	} catch (error) {
+		console.warn('获取父提交SHA失败:', error.message)
+	}
+
+	try {
+		// 添加文件内容上下文
+		fileContexts = await getFileContexts(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit,
+			diff,
+			parentCommitSha
+		)
+	} catch (error) {
+		console.warn('获取文件上下文失败:', error.message)
+	}
 
 	// 构造提交对象，包含更多上下文信息
 	const commitObj = {
@@ -239,14 +266,14 @@ async function processGitHubCommit(repository, commit) {
 			modified: commit.modified || [],
 			removed: commit.removed || [],
 		},
-		// 添加文件内容上下文
-		fileContexts: await getFileContexts(
-			repository.owner.login || repository.owner.name,
-			repository.name,
-			commit,
-			diff,
-			parentCommitSha
-		),
+		fileContexts: fileContexts,
+		// 添加API状态信息
+		apiStatus: {
+			commitDetails: commitDetails !== null,
+			diff: diff.length > 0,
+			parentCommitSha: parentCommitSha !== null,
+			fileContexts: Object.keys(fileContexts).length > 0
+		}
 	}
 
 	console.log(
@@ -284,6 +311,58 @@ async function processGitLabCommit(project, commit) {
 
 	// AI代码审查
 	await aiService.reviewCode(diff, commitObj)
+}
+
+// 从webhook数据创建基本的diff信息
+function createBasicDiffFromWebhook(commit) {
+	const diff = []
+	
+	// 处理添加的文件
+	if (commit.added && commit.added.length > 0) {
+		commit.added.forEach(filename => {
+			diff.push({
+				oldPath: null,
+				newPath: filename,
+				diff: null,
+				newFile: true,
+				deletedFile: false,
+				renamedFile: false,
+				status: 'added'
+			})
+		})
+	}
+	
+	// 处理修改的文件
+	if (commit.modified && commit.modified.length > 0) {
+		commit.modified.forEach(filename => {
+			diff.push({
+				oldPath: filename,
+				newPath: filename,
+				diff: null,
+				newFile: false,
+				deletedFile: false,
+				renamedFile: false,
+				status: 'modified'
+			})
+		})
+	}
+	
+	// 处理删除的文件
+	if (commit.removed && commit.removed.length > 0) {
+		commit.removed.forEach(filename => {
+			diff.push({
+				oldPath: filename,
+				newPath: null,
+				diff: null,
+				newFile: false,
+				deletedFile: true,
+				renamedFile: false,
+				status: 'removed'
+			})
+		})
+	}
+	
+	return diff
 }
 
 // 获取文件上下文信息
@@ -383,4 +462,5 @@ module.exports = {
 	handleGitHubPush,
 	processGitHubCommit,
 	getFileContexts,
+	createBasicDiffFromWebhook,
 }

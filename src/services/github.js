@@ -4,6 +4,14 @@ class GitHubService {
 	constructor() {
 		this.baseURL = 'https://api.github.com'
 		this.token = process.env.GITHUB_TOKEN
+		
+		// 调试信息
+		console.log('GitHub Token 配置:', this.token ? `${this.token.substring(0, 10)}...` : '未设置')
+		
+		if (!this.token) {
+			console.warn('警告: GITHUB_TOKEN 环境变量未设置，GitHub API 功能将受限')
+		}
+		
 		this.client = axios.create({
 			baseURL: this.baseURL,
 			headers: {
@@ -34,6 +42,12 @@ class GitHubService {
 		try {
 			console.log(`获取文件内容: ${path} at ${ref} in ${owner}/${repo}`)
 			
+			// 如果没有token，跳过API调用
+			if (!this.token || this.token === 'undefined') {
+				console.warn(`跳过文件内容获取 ${path}: GitHub Token 未配置`)
+				return null
+			}
+			
 			const response = await this.client.get(
 				`/repos/${owner}/${repo}/contents/${path}`,
 				{ params: { ref } }
@@ -47,7 +61,14 @@ class GitHubService {
 			
 			return null
 		} catch (error) {
-			console.error(`获取文件内容错误 ${path}:`, error)
+			console.error(`获取文件内容错误 ${path}:`, error.response?.status, error.response?.data?.message)
+			
+			// 如果是认证错误，提供更详细的错误信息
+			if (error.response?.status === 401) {
+				console.error('GitHub Token 认证失败，请检查 GITHUB_TOKEN 环境变量')
+				console.error('当前Token:', this.token ? `${this.token.substring(0, 10)}...` : '未设置')
+			}
+			
 			return null
 		}
 	}
