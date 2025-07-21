@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI代码审查工具 - 内网穿透管理</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .status-online {
+      background-color: #4CAF50;
+    }
+    .status-offline {
+      background-color: #F44336;
+    }
+    .btn {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 15px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btn-danger {
+      background-color: #F44336;
+    }
+    .btn-secondary {
+      background-color: #2196F3;
+    }
+    .url-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      word-break: break-all;
+    }
+    .hidden {
+      display: none;
+    }
+    #loading {
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI代码审查工具 - 内网穿透管理</h1>
+  
+  <div class="card">
+    <h2>隧道状态</h2>
+    <div class="status">
+      <div id="status-indicator" class="status-indicator status-offline"></div>
+      <span id="status-text">正在加载...</span>
+    </div>
+    
+    <div id="tunnel-info" class="hidden">
+      <p><strong>隧道类型:</strong> <span id="tunnel-type">-</span></p>
+      <p><strong>公网地址:</strong></p>
+      <div id="tunnel-url" class="url-box">-</div>
+      
+      <p><strong>Webhook URLs:</strong></p>
+      <div>
+        <p>GitHub:</p>
+        <div id="github-webhook-url" class="url-box">-</div>
+        <p>GitLab:</p>
+        <div id="gitlab-webhook-url" class="url-box">-</div>
+      </div>
+    </div>
+    
+    <div id="loading" class="hidden">
+      <p>处理中，请稍候...</p>
+    </div>
+    
+    <div id="actions">
+      <button id="btn-restart" class="btn btn-secondary">重启隧道</button>
+      <button id="btn-switch-ngrok" class="btn">切换到Ngrok</button>
+      <button id="btn-switch-localtunnel" class="btn">切换到Localtunnel</button>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>使用说明</h2>
+    <p>本工具通过内网穿透技术，将本地运行的AI代码审查服务暴露到公网，以便接收GitHub或GitLab的Webhook通知。</p>
+    <p><strong>配置步骤:</strong></p>
+    <ol>
+      <li>确保服务正常运行，并且隧道状态为"在线"</li>
+      <li>复制对应的Webhook URL（GitHub或GitLab）</li>
+      <li>在您的代码仓库设置中，添加Webhook，粘贴上面的URL</li>
+      <li>选择"push"事件作为触发条件</li>
+      <li>保存设置后，每次代码提交都会自动触发AI代码审查</li>
+    </ol>
+  </div>
+
+  <script>
+    // 获取元素
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const tunnelInfo = document.getElementById('tunnel-info');
+    const tunnelType = document.getElementById('tunnel-type');
+    const tunnelUrl = document.getElementById('tunnel-url');
+    const githubWebhookUrl = document.getElementById('github-webhook-url');
+    const gitlabWebhookUrl = document.getElementById('gitlab-webhook-url');
+    const loading = document.getElementById('loading');
+    const btnRestart = document.getElementById('btn-restart');
+    const btnSwitchNgrok = document.getElementById('btn-switch-ngrok');
+    const btnSwitchLocaltunnel = document.getElementById('btn-switch-localtunnel');
+    
+    // 获取隧道状态
+    async function getTunnelStatus() {
+      try {
+        const response = await fetch('/tunnel/status');
+        const data = await response.json();
+        
+        updateUI(data);
+      } catch (error) {
+        console.error('获取隧道状态失败:', error);
+        statusText.textContent = '获取状态失败';
+      }
+    }
+    
+    // 更新UI
+    function updateUI(data) {
+      if (data.isConnected) {
+        statusIndicator.className = 'status-indicator status-online';
+        statusText.textContent = '在线';
+        tunnelInfo.classList.remove('hidden');
+        
+        tunnelType.textContent = data.tunnelType === 'ngrok' ? 'Ngrok' : 'Localtunnel';
+        tunnelUrl.textContent = data.tunnelUrl;
+        githubWebhookUrl.textContent = `${data.tunnelUrl}/webhook/github`;
+        gitlabWebhookUrl.textContent = `${data.tunnelUrl}/webhook/gitlab`;
+      } else {
+        statusIndicator.className = 'status-indicator status-offline';
+        statusText.textContent = '离线';
+        tunnelInfo.classList.add('hidden');
+      }
+    }
+    
+    // 重启隧道
+    async function restartTunnel() {
+      setLoading(true);
+      
+      try {
+        const response = await fetch('/tunnel/restart', {
+          method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          getTunnelStatus();
+        } else {
+          alert('重启隧道失败: ' + data.message);
+        }
+      } catch (error) {
+        console.error('重启隧道失败:', error);
+        alert('重启隧道失败，请查看控制台获取详细信息');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    // 切换隧道类型
+    async function switchTunnelType(type) {
+      setLoading(true);
+      
+      try {
+        const response = await fetch('/tunnel/switch-type', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ type })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          getTunnelStatus();
+        } else {
+          alert('切换隧道类型失败: ' + data.message);
+        }
+      } catch (error) {
+        console.error('切换隧道类型失败:', error);
+        alert('切换隧道类型失败，请查看控制台获取详细信息');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    // 设置加载状态
+    function setLoading(isLoading) {
+      if (isLoading) {
+        loading.classList.remove('hidden');
+        btnRestart.disabled = true;
+        btnSwitchNgrok.disabled = true;
+        btnSwitchLocaltunnel.disabled = true;
+      } else {
+        loading.classList.add('hidden');
+        btnRestart.disabled = false;
+        btnSwitchNgrok.disabled = false;
+        btnSwitchLocaltunnel.disabled = false;
+      }
+    }
+    
+    // 事件监听
+    btnRestart.addEventListener('click', restartTunnel);
+    btnSwitchNgrok.addEventListener('click', () => switchTunnelType('ngrok'));
+    btnSwitchLocaltunnel.addEventListener('click', () => switchTunnelType('localtunnel'));
+    
+    // 初始化
+    getTunnelStatus();
+    
+    // 定期刷新状态
+    setInterval(getTunnelStatus, 30000); // 每30秒刷新一次
+  </script>
+</body>
+</html>
