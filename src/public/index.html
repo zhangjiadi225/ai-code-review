@@ -69,6 +69,14 @@
     #loading {
       margin: 20px 0;
     }
+    .region-selector {
+      margin: 10px 0;
+    }
+    select {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
@@ -82,7 +90,6 @@
     </div>
     
     <div id="tunnel-info" class="hidden">
-      <p><strong>隧道类型:</strong> <span id="tunnel-type">-</span></p>
       <p><strong>公网地址:</strong></p>
       <div id="tunnel-url" class="url-box">-</div>
       
@@ -101,14 +108,12 @@
     
     <div id="actions">
       <button id="btn-restart" class="btn btn-secondary">重启隧道</button>
-      <button id="btn-switch-ngrok" class="btn">切换到Ngrok</button>
-      <button id="btn-switch-localtunnel" class="btn">切换到Localtunnel</button>
     </div>
   </div>
   
   <div class="card">
     <h2>使用说明</h2>
-    <p>本工具通过内网穿透技术，将本地运行的AI代码审查服务暴露到公网，以便接收GitHub或GitLab的Webhook通知。</p>
+    <p>本工具通过ngrok内网穿透技术，将本地运行的AI代码审查服务暴露到公网，以便接收GitHub或GitLab的Webhook通知。</p>
     <p><strong>配置步骤:</strong></p>
     <ol>
       <li>确保服务正常运行，并且隧道状态为"在线"</li>
@@ -117,6 +122,12 @@
       <li>选择"push"事件作为触发条件</li>
       <li>保存设置后，每次代码提交都会自动触发AI代码审查</li>
     </ol>
+    <p><strong>注意事项:</strong></p>
+    <ul>
+      <li>服务使用亚太地区(中国)的ngrok服务器</li>
+      <li>如果连接不稳定，可以尝试重启隧道</li>
+      <li>所有人都可以直接访问生成的URL，无需密码</li>
+    </ul>
   </div>
 
   <script>
@@ -124,14 +135,11 @@
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
     const tunnelInfo = document.getElementById('tunnel-info');
-    const tunnelType = document.getElementById('tunnel-type');
     const tunnelUrl = document.getElementById('tunnel-url');
     const githubWebhookUrl = document.getElementById('github-webhook-url');
     const gitlabWebhookUrl = document.getElementById('gitlab-webhook-url');
     const loading = document.getElementById('loading');
     const btnRestart = document.getElementById('btn-restart');
-    const btnSwitchNgrok = document.getElementById('btn-switch-ngrok');
-    const btnSwitchLocaltunnel = document.getElementById('btn-switch-localtunnel');
     
     // 获取隧道状态
     async function getTunnelStatus() {
@@ -153,7 +161,6 @@
         statusText.textContent = '在线';
         tunnelInfo.classList.remove('hidden');
         
-        tunnelType.textContent = data.tunnelType === 'ngrok' ? 'Ngrok' : 'Localtunnel';
         tunnelUrl.textContent = data.tunnelUrl;
         githubWebhookUrl.textContent = `${data.tunnelUrl}/webhook/github`;
         gitlabWebhookUrl.textContent = `${data.tunnelUrl}/webhook/gitlab`;
@@ -187,52 +194,21 @@
       }
     }
     
-    // 切换隧道类型
-    async function switchTunnelType(type) {
-      setLoading(true);
-      
-      try {
-        const response = await fetch('/tunnel/switch-type', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ type })
-        });
-        const data = await response.json();
-        
-        if (data.success) {
-          getTunnelStatus();
-        } else {
-          alert('切换隧道类型失败: ' + data.message);
-        }
-      } catch (error) {
-        console.error('切换隧道类型失败:', error);
-        alert('切换隧道类型失败，请查看控制台获取详细信息');
-      } finally {
-        setLoading(false);
-      }
-    }
+    // 移除更新区域功能
     
     // 设置加载状态
     function setLoading(isLoading) {
       if (isLoading) {
         loading.classList.remove('hidden');
         btnRestart.disabled = true;
-        btnSwitchNgrok.disabled = true;
-        btnSwitchLocaltunnel.disabled = true;
       } else {
         loading.classList.add('hidden');
         btnRestart.disabled = false;
-        btnSwitchNgrok.disabled = false;
-        btnSwitchLocaltunnel.disabled = false;
       }
     }
     
     // 事件监听
     btnRestart.addEventListener('click', restartTunnel);
-    btnSwitchNgrok.addEventListener('click', () => switchTunnelType('ngrok'));
-    btnSwitchLocaltunnel.addEventListener('click', () => switchTunnelType('localtunnel'));
     
     // 初始化
     getTunnelStatus();

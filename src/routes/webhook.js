@@ -6,33 +6,74 @@ const aiService = require('../services/ai');
 
 const router = express.Router();
 
-// GitHub webhook处理
+// GitHub webhook处理 - GET请求用于测试连接
+router.get('/github', (req, res) => {
+  console.log('收到GitHub webhook测试连接');
+  res.status(200).send('GitHub Webhook endpoint is working!');
+});
+
+// GitHub webhook处理 - POST请求用于实际事件
 router.post('/github', async (req, res) => {
   try {
-    const eventType = req.headers['x-github-event'];
+    // 详细记录请求信息，帮助调试
+    console.log('收到GitHub webhook POST请求');
+    console.log('请求头:', JSON.stringify(req.headers, null, 2));
+    console.log('请求体预览:', JSON.stringify(req.body).substring(0, 500) + '...');
     
-    console.log(`收到GitHub webhook: ${eventType}`);
+    const eventType = req.headers['x-github-event'];
+    const deliveryId = req.headers['x-github-delivery'];
+    
+    console.log(`收到GitHub webhook: ${eventType}, ID: ${deliveryId || '未知'}`);
 
-    // 只处理push事件
+    // 处理ping事件
+    if (eventType === 'ping') {
+      console.log('收到GitHub ping事件，webhook配置成功');
+      return res.status(200).json({ 
+        status: 'success',
+        message: 'Webhook received successfully!'
+      });
+    }
+    
+    // 处理push事件
     if (eventType === 'push') {
       await handleGitHubPush(req.body);
     }
 
-    res.json({ status: 'success' });
+    // 确保返回200状态码
+    return res.status(200).json({ status: 'success' });
   } catch (error) {
     console.error('处理GitHub webhook错误:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    // 即使出错也返回200状态码，避免GitHub重试
+    return res.status(200).json({ 
+      status: 'error',
+      message: '处理webhook时出错，但已收到请求'
+    });
   }
 });
 
-// GitLab webhook处理
+// GitLab webhook处理 - GET请求用于测试连接
+router.get('/gitlab', (req, res) => {
+  console.log('收到GitLab webhook测试连接');
+  res.status(200).send('GitLab Webhook endpoint is working!');
+});
+
+// GitLab webhook处理 - POST请求用于实际事件
 router.post('/gitlab', async (req, res) => {
   try {
     const { object_kind } = req.body;
     
     console.log(`收到GitLab webhook: ${object_kind}`);
 
-    // 只处理push事件
+    // 处理系统钩子测试
+    if (object_kind === 'test') {
+      console.log('收到GitLab测试事件，webhook配置成功');
+      return res.json({ 
+        status: 'success',
+        message: 'Webhook received successfully!'
+      });
+    }
+    
+    // 处理push事件
     if (object_kind === 'push') {
       await handleGitLabPush(req.body);
     }

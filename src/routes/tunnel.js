@@ -43,39 +43,7 @@ router.post('/restart', async (req, res) => {
   }
 });
 
-// 切换隧道类型
-router.post('/switch-type', async (req, res) => {
-  try {
-    const { type } = req.body;
-    
-    if (!type || !['ngrok', 'localtunnel'].includes(type)) {
-      return res.status(400).json({ error: '无效的隧道类型' });
-    }
-    
-    await tunnelService.stopTunnel();
-    tunnelService.tunnelType = type;
-    
-    const port = parseInt(process.env.PORT || '3000');
-    const url = await tunnelService.startTunnel(port);
-    
-    if (url) {
-      res.json({ 
-        success: true, 
-        message: `隧道类型已切换至 ${type}`, 
-        url,
-        type
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: '隧道启动失败，正在尝试重连' 
-      });
-    }
-  } catch (error) {
-    console.error('切换隧道类型错误:', error);
-    res.status(500).json({ error: '切换隧道类型失败' });
-  }
-});
+// 移除更新隧道配置API
 
 // 获取所有活跃隧道
 router.get('/list', async (req, res) => {
