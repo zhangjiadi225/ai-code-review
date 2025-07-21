@@ -144,30 +144,31 @@ async function handleGitLabPush(payload) {
 // 处理GitHub单个提交
 async function processGitHubCommit(repository, commit) {
   console.log(`处理GitHub提交: ${commit.id}`);
+  console.log('commit', commit)
 
-  // 获取提交的diff
-  const diff = await githubService.getCommitDiff(
-    repository.owner.login || repository.owner.name,
-    repository.name,
-    commit.id
-  );
+  // // 获取提交的diff
+  // const diff = await githubService.getCommitDiff(
+  //   repository.owner.login || repository.owner.name,
+  //   repository.name,
+  //   commit.id
+  // );
   
-  if (!diff || diff.length === 0) {
-    console.log('提交没有代码变更');
-    return;
-  }
+  // if (!diff || diff.length === 0) {
+  //   console.log('提交没有代码变更');
+  //   return;
+  // }
 
-  // 构造提交对象
-  const commitObj = {
-    id: commit.id,
-    message: commit.message,
-    author: commit.author,
-    timestamp: commit.timestamp,
-    url: commit.url
-  };
+  // // 构造提交对象
+  // const commitObj = {
+  //   id: commit.id,
+  //   message: commit.message,
+  //   author: commit.author,
+  //   timestamp: commit.timestamp,
+  //   url: commit.url
+  // };
 
-  // AI代码审查
-  await aiService.reviewCode(diff, commitObj);
+  // // AI代码审查
+  // await aiService.reviewCode(diff, commitObj);
 }
 
 // 处理GitLab单个提交
