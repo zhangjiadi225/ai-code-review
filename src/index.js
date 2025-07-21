@@ -2,7 +2,7 @@ const express = require('express')
 const path = require('path')
 require('dotenv').config({ path: './config.env' })
 
-const webhookRoutes = require('./routes/webhook')
+const { router: webhookRoutes } = require('./routes/webhook')
 const debugRoutes = require('./routes/debug')
 
 const app = express()
