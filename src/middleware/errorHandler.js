@@ -1,3 +1,4 @@
+require('dotenv').config()
 /**
  * 全局错误处理中间件
  */

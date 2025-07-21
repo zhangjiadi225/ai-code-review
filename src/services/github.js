@@ -1,15 +1,16 @@
 const axios = require('axios')
+require('dotenv').config()
 
 class GitHubService {
 	constructor() {
 		this.baseURL = 'https://api.github.com'
-		this.token = process.env.GITHUB_TOKEN
+		this.token = process.env.GITHUB_TOKEN_AI
 		
 		// 调试信息
 		console.log('GitHub Token 配置:', this.token ? `${this.token.substring(0, 10)}...` : '未设置')
 		
 		if (!this.token) {
-			console.warn('警告: GITHUB_TOKEN 环境变量未设置，GitHub API 功能将受限')
+			console.warn('警告: GITHUB_TOKEN_AI 环境变量未设置，GitHub API 功能将受限')
 		}
 		
 		this.client = axios.create({
@@ -65,7 +66,7 @@ class GitHubService {
 			
 			// 如果是认证错误，提供更详细的错误信息
 			if (error.response?.status === 401) {
-				console.error('GitHub Token 认证失败，请检查 GITHUB_TOKEN 环境变量')
+				console.error('GitHub Token 认证失败，请检查 GITHUB_TOKEN_AI 环境变量')
 				console.error('当前Token:', this.token ? `${this.token.substring(0, 10)}...` : '未设置')
 			}
 			

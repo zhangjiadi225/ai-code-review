@@ -30,7 +30,7 @@ cp config.env .env
 PORT=3000
 
 # GitHub配置 (可选，如果使用GitHub)
-GITHUB_TOKEN=your-github-token
+GITHUB_TOKEN_AI=your-github-token
 
 # GitLab配置 (可选，如果使用GitLab)
 GITLAB_URL=https://gitlab.com

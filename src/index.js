@@ -1,6 +1,6 @@
 const express = require('express')
 const path = require('path')
-require('dotenv').config({ path: './config.env' })
+require('dotenv').config()
 
 const { router: webhookRoutes } = require('./routes/webhook')
 const debugRoutes = require('./routes/debug')
@@ -8,6 +8,8 @@ const debugRoutes = require('./routes/debug')
 const app = express()
 const PORT = process.env.PORT || 3000
 
+console.log(process.env.PORT, 'PORT')
+console.log(process.env.GITHUB_TOKEN_AI, 'token')
 // 基本中间件
 app.use(
 	express.json({

@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+require('dotenv').config()
 
 /**
  * GitHub webhook验证中间件
