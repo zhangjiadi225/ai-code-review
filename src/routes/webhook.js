@@ -64,40 +64,6 @@ router.post('/github', async (req, res) => {
 	}
 })
 
-// GitLab webhook处理 - GET请求用于测试连接
-router.get('/gitlab', (req, res) => {
-	console.log('收到GitLab webhook测试连接')
-	res.status(200).send('GitLab Webhook endpoint is working!')
-})
-
-// GitLab webhook处理 - POST请求用于实际事件
-router.post('/gitlab', async (req, res) => {
-	try {
-		const { object_kind } = req.body
-
-		console.log(`收到GitLab webhook: ${object_kind}`)
-
-		// 处理系统钩子测试
-		if (object_kind === 'test') {
-			console.log('收到GitLab测试事件，webhook配置成功')
-			return res.json({
-				status: 'success',
-				message: 'Webhook received successfully!',
-			})
-		}
-
-		// 处理push事件
-		if (object_kind === 'push') {
-			await handleGitLabPush(req.body)
-		}
-
-		res.json({ status: 'success' })
-	} catch (error) {
-		console.error('处理GitLab webhook错误:', error)
-		res.status(500).json({ error: 'Internal Server Error' })
-	}
-})
-
 // 处理GitHub push事件
 async function handleGitHubPush(payload) {
 	const { repository, commits, ref } = payload
@@ -159,35 +125,6 @@ async function handleGitHubPush(payload) {
 	}
 
 	return processedCommits
-}
-
-// 处理GitLab push事件
-async function handleGitLabPush(payload) {
-	const { project, commits } = payload
-
-	console.log(`处理GitLab push事件，项目: ${project.name}`)
-
-	// 过滤有效提交
-	const validCommits = commits.filter(
-		(commit) =>
-			commit.added.length > 0 ||
-			commit.modified.length > 0 ||
-			commit.removed.length > 0
-	)
-
-	if (validCommits.length === 0) {
-		console.log('没有有效的提交需要审查')
-		return
-	}
-
-	// 处理每个提交
-	for (const commit of validCommits) {
-		try {
-			await processGitLabCommit(project, commit)
-		} catch (error) {
-			console.error(`处理GitLab提交错误 ${commit.id}:`, error)
-		}
-	}
 }
 
 // 处理GitHub单个提交
@@ -315,10 +252,72 @@ async function processGitHubCommit(repository, commit) {
 	}
 
 	// 返回完整的提交对象，可以用于后续处理
-	return commitObj
+	// return commitObj
 
 	// AI代码审查
-	// await aiService.reviewCode(diff, commitObj);
+	await aiService.reviewCode(diff, commitObj);
+}
+
+// GitLab webhook处理 - GET请求用于测试连接
+router.get('/gitlab', (req, res) => {
+	console.log('收到GitLab webhook测试连接')
+	res.status(200).send('GitLab Webhook endpoint is working!')
+})
+
+// GitLab webhook处理 - POST请求用于实际事件
+router.post('/gitlab', async (req, res) => {
+	try {
+		const { object_kind } = req.body
+
+		console.log(`收到GitLab webhook: ${object_kind}`)
+
+		// 处理系统钩子测试
+		if (object_kind === 'test') {
+			console.log('收到GitLab测试事件，webhook配置成功')
+			return res.json({
+				status: 'success',
+				message: 'Webhook received successfully!',
+			})
+		}
+
+		// 处理push事件
+		if (object_kind === 'push') {
+			await handleGitLabPush(req.body)
+		}
+
+		res.json({ status: 'success' })
+	} catch (error) {
+		console.error('处理GitLab webhook错误:', error)
+		res.status(500).json({ error: 'Internal Server Error' })
+	}
+})
+// 处理GitLab push事件
+async function handleGitLabPush(payload) {
+	const { project, commits } = payload
+
+	console.log(`处理GitLab push事件，项目: ${project.name}`)
+
+	// 过滤有效提交
+	const validCommits = commits.filter(
+		(commit) =>
+			commit.added.length > 0 ||
+			commit.modified.length > 0 ||
+			commit.removed.length > 0
+	)
+
+	if (validCommits.length === 0) {
+		console.log('没有有效的提交需要审查')
+		return
+	}
+
+	// 处理每个提交
+	for (const commit of validCommits) {
+		try {
+			await processGitLabCommit(project, commit)
+		} catch (error) {
+			console.error(`处理GitLab提交错误 ${commit.id}:`, error)
+		}
+	}
 }
 
 // 处理GitLab单个提交

@@ -50,6 +50,7 @@ class AIService {
     try {
       const filePath = diff.newPath || diff.oldPath;
       console.log(`正在审查文件: ${filePath}`);
+      console.log('diff', diff)
 
       const prompt = this.buildReviewPrompt(diff, commit);
       
@@ -68,7 +69,9 @@ class AIService {
             5. 代码风格和规范
             6. 可读性和维护性
             
-            请用中文回复，并提供具体的改进建议。如果代码没有问题，请回复"无建议"。`
+            请用中文回复，并提供具体的改进建议。如果代码没有问题，请回复"无建议"。 以下是我的git diff
+            ${JSON.stringify(diff)}
+            `
           },
           {
             role: 'user',
