@@ -255,7 +255,7 @@ async function processGitHubCommit(repository, commit) {
 	// return commitObj
 
 	// AI代码审查
-	await aiService.reviewCode(diff, commitObj);
+	await aiService.reviewAll(diff, commitObj);
 }
 
 // GitLab webhook处理 - GET请求用于测试连接
