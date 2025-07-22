@@ -28,7 +28,7 @@ class AIService {
         ${JSON.stringify(diffs)}`,
 			},
 		]
-    this.saveMessageToFile(message)
+		this.saveMessageToFile(message)
 		const result = await axios.post(
 			this.baseURL,
 			{
@@ -96,7 +96,7 @@ class AIService {
 			if (!fs.existsSync(outputDir)) {
 				fs.mkdirSync(outputDir, { recursive: true })
 			}
-			const filename = `messages_${review.commitId.substring(0, 8)}_${new Date()
+			const filename = `messages_${new Date()
 				.toISOString()
 				.replace(/[:.]/g, '-')}.txt`
 			const filepath = path.join(outputDir, filename)
