@@ -4,6 +4,7 @@ require('dotenv').config()
 
 const { router: webhookRoutes } = require('./routes/webhook')
 const debugRoutes = require('./routes/debug')
+const logRoutes = require('./routes/logs')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -34,6 +35,7 @@ app.use(express.static(path.join(__dirname, 'public')))
 // 路由
 app.use('/webhook', webhookRoutes)
 app.use('/debug', debugRoutes)
+app.use('/logs', logRoutes)
 
 // 健康检查路由
 
@@ -51,6 +53,7 @@ app.get('/', (req, res) => {
 			health: '/health',
 			github_webhook: '/webhook/github',
 			gitlab_webhook: '/webhook/gitlab',
+			logs: '/logs',
 		},
 	})
 })

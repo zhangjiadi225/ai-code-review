@@ -3,6 +3,7 @@ const crypto = require('crypto')
 const githubService = require('../services/github')
 const gitlabService = require('../services/gitlab')
 const aiService = require('../services/ai')
+const logger = require('../services/logger')
 
 const router = express.Router()
 
@@ -35,6 +36,11 @@ router.post('/github', async (req, res) => {
 				status: 'success',
 				message: 'Webhook received successfully!',
 			})
+		}
+
+		// 保存原始 webhook 数据
+		if (eventType === 'push') {
+			await logger.saveWebhookData('github_push', req.body)
 		}
 
 		// 处理push事件
@@ -272,14 +278,41 @@ async function processGitHubCommit(repository, commit) {
 			commitDetails: commitDetails !== null,
 			diff: diff.length > 0,
 			parentCommitSha: parentCommitSha !== null,
-			fileContexts: Object.keys(fileContexts).length > 0
-		}
+			fileContexts: Object.keys(fileContexts).length > 0,
+		},
 	}
 
-	console.log(
-		'完整的提交对象:',
-		JSON.stringify(commitObj, null, 2).substring(0, 500) + '...'
-	)
+	console.log('完整的提交对象:', JSON.stringify(commitObj, null, 2))
+
+	// 保存 diff 数据到日志文件
+	try {
+		await logger.saveDiffData(
+			commit.id,
+			{
+				name: repository.name,
+				owner: repository.owner.login || repository.owner.name,
+				url: repository.html_url,
+			},
+			diff,
+			{
+				branch: commitObj.branch,
+				message: commit.message,
+				author: commit.author,
+				timestamp: commit.timestamp,
+				files: commitObj.files,
+				apiStatus: commitObj.apiStatus,
+			}
+		)
+	} catch (error) {
+		console.error('保存 diff 数据失败:', error)
+	}
+
+	// 保存完整的提交处理数据
+	try {
+		await logger.saveCommitProcessData(commitObj)
+	} catch (error) {
+		console.error('保存提交处理数据失败:', error)
+	}
 
 	// 返回完整的提交对象，可以用于后续处理
 	return commitObj
@@ -316,10 +349,10 @@ async function processGitLabCommit(project, commit) {
 // 从webhook数据创建基本的diff信息
 function createBasicDiffFromWebhook(commit) {
 	const diff = []
-	
+
 	// 处理添加的文件
 	if (commit.added && commit.added.length > 0) {
-		commit.added.forEach(filename => {
+		commit.added.forEach((filename) => {
 			diff.push({
 				oldPath: null,
 				newPath: filename,
@@ -327,14 +360,14 @@ function createBasicDiffFromWebhook(commit) {
 				newFile: true,
 				deletedFile: false,
 				renamedFile: false,
-				status: 'added'
+				status: 'added',
 			})
 		})
 	}
-	
+
 	// 处理修改的文件
 	if (commit.modified && commit.modified.length > 0) {
-		commit.modified.forEach(filename => {
+		commit.modified.forEach((filename) => {
 			diff.push({
 				oldPath: filename,
 				newPath: filename,
@@ -342,14 +375,14 @@ function createBasicDiffFromWebhook(commit) {
 				newFile: false,
 				deletedFile: false,
 				renamedFile: false,
-				status: 'modified'
+				status: 'modified',
 			})
 		})
 	}
-	
+
 	// 处理删除的文件
 	if (commit.removed && commit.removed.length > 0) {
-		commit.removed.forEach(filename => {
+		commit.removed.forEach((filename) => {
 			diff.push({
 				oldPath: filename,
 				newPath: null,
@@ -357,11 +390,11 @@ function createBasicDiffFromWebhook(commit) {
 				newFile: false,
 				deletedFile: true,
 				renamedFile: false,
-				status: 'removed'
+				status: 'removed',
 			})
 		})
 	}
-	
+
 	return diff
 }
 
