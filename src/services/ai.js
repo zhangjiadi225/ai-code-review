@@ -28,7 +28,7 @@ class AIService {
         ${JSON.stringify(diffs)}`,
 			},
 		]
-
+    this.saveMessageToFile(message)
 		const result = await axios.post(
 			this.baseURL,
 			{
