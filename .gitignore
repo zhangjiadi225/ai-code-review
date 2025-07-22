@@ -11,6 +11,7 @@ config.env
 # 日志文件
 *.log
 logs/
+reviews
 
 # 审查结果
 reviews/
