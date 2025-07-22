@@ -73,18 +73,16 @@
     <div>
       <p>GitHub:</p>
       <div id="github-webhook-url" class="url-box">http://localhost:3000/webhook/github</div>
-      <p>GitLab:</p>
-      <div id="gitlab-webhook-url" class="url-box">http://localhost:3000/webhook/gitlab</div>
     </div>
   </div>
   
   <div class="card">
     <h2>使用说明</h2>
-    <p>本工具提供AI代码审查服务，可以接收GitHub或GitLab的Webhook通知。</p>
+    <p>本工具提供AI代码审查服务，可以接收GitHub的Webhook通知。</p>
     <p><strong>配置步骤:</strong></p>
     <ol>
       <li>确保服务正常运行</li>
-      <li>复制对应的Webhook URL（GitHub或GitLab）</li>
+      <li>复制对应的Webhook URL（GitHub）</li>
       <li>在您的代码仓库设置中，添加Webhook，粘贴上面的URL</li>
       <li>选择"push"事件作为触发条件</li>
       <li>保存设置后，每次代码提交都会自动触发AI代码审查</li>
@@ -92,7 +90,7 @@
     <p><strong>注意事项:</strong></p>
     <ul>
       <li>本服务默认运行在本地，如需公网访问，请自行配置反向代理</li>
-      <li>确保防火墙没有阻止GitHub或GitLab的请求</li>
+      <li>确保防火墙没有阻止GitHub的请求</li>
     </ul>
   </div>
 
@@ -103,7 +101,6 @@
       const baseUrl = `${window.location.protocol}//${window.location.hostname}:${port}`;
       
       document.getElementById('github-webhook-url').textContent = `${baseUrl}/webhook/github`;
-      document.getElementById('gitlab-webhook-url').textContent = `${baseUrl}/webhook/gitlab`;
     }
     
     // 初始化

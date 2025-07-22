@@ -12,6 +12,8 @@ config.env
 *.log
 logs/
 reviews
+messages
+
 
 # 审查结果
 reviews/

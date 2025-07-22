@@ -1,7 +1,6 @@
 const express = require('express')
 const crypto = require('crypto')
 const githubService = require('../services/github')
-const gitlabService = require('../services/gitlab')
 const aiService = require('../services/ai')
 const logger = require('../services/logger')
 

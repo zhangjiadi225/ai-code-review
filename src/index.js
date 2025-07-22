@@ -52,7 +52,6 @@ app.get('/', (req, res) => {
 		endpoints: {
 			health: '/health',
 			github_webhook: '/webhook/github',
-			gitlab_webhook: '/webhook/gitlab',
 			logs: '/logs',
 		},
 	})
@@ -84,7 +83,6 @@ const server = app.listen(PORT, () => {
 // 启动信息
 console.log(`服务器地址: http://localhost:${PORT}`)
 console.log(`GitHub Webhook URL: http://localhost:${PORT}/webhook/github`)
-console.log(`GitLab Webhook URL: http://localhost:${PORT}/webhook/gitlab`)
 
 // 优雅关闭
 process.on('SIGINT', () => {
