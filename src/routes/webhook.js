@@ -18,11 +18,6 @@ router.post('/github', async (req, res) => {
 	try {
 		// 详细记录请求信息，帮助调试
 		console.log('收到GitHub webhook POST请求')
-		console.log('请求头:', JSON.stringify(req.headers, null, 2))
-		console.log(
-			'请求体预览:',
-			JSON.stringify(req.body).substring(0, 500) + '...'
-		)
 
 		const eventType = req.headers['x-github-event']
 		const deliveryId = req.headers['x-github-delivery']
@@ -31,7 +26,6 @@ router.post('/github', async (req, res) => {
 
 		// 处理ping事件
 		if (eventType === 'ping') {
-			console.log('收到GitHub ping事件，webhook配置成功')
 			return res.status(200).json({
 				status: 'success',
 				message: 'Webhook received successfully!',
@@ -112,7 +106,7 @@ async function handleGitHubPush(payload) {
 			)
 
 			// 处理提交并获取完整的提交对象
-			const processedCommit = await processGitHubCommit(
+			const processedCommit = await simpleProcessGitHubCommit(
 				repository,
 				enhancedCommit
 			)
@@ -125,6 +119,60 @@ async function handleGitHubPush(payload) {
 	}
 
 	return processedCommits
+}
+// 简单处理GitHub提交
+async function simpleProcessGitHubCommit(repository, commit) {
+	console.log(`处理GitHub提交: ${commit.id}`)
+	console.log('commit', commit)
+	let diff = []
+
+	try {
+		// 获取完整的commit内容
+		commitDetails = await githubService.getCommitDetails(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit.id
+		)
+	} catch (error) {
+		console.warn('获取commit详情失败，使用webhook数据:', error.message)
+	}
+
+	try {
+		// 获取提交的diff
+		diff = await githubService.getCommitDiff(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit.id,
+			commit // 传递webhook提供的文件信息
+		)
+	} catch (error) {
+		console.warn('获取diff失败，使用基本文件信息:', error.message)
+		// 创建基本的diff信息
+		diff = createBasicDiffFromWebhook(commit)
+	}
+
+	try {
+		// 添加文件内容上下文
+		fileContexts = await getFileContexts(
+			repository.owner.login || repository.owner.name,
+			repository.name,
+			commit,
+			diff
+		)
+	} catch (error) {
+		console.warn('获取文件上下文失败:', error.message)
+	}
+
+	// 构造提交对象，包含更多上下文信息
+	const commitObj = {
+		id: commit.id,
+		message: commit.message,
+		author: commit.author,
+		diff: diff, // 添加diff信息
+	}
+
+	// AI代码审查
+	await aiService.reviewAll(diff, commitObj)
 }
 
 // 处理GitHub单个提交
@@ -255,7 +303,7 @@ async function processGitHubCommit(repository, commit) {
 	// return commitObj
 
 	// AI代码审查
-	await aiService.reviewAll(diff, commitObj);
+	await aiService.reviewAll(diff, commitObj)
 }
 
 // GitLab webhook处理 - GET请求用于测试连接
