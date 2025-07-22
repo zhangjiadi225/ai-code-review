@@ -342,7 +342,7 @@ async function processGitLabCommit(project, commit) {
 	}
 
 	// AI代码审查
-	await aiService.reviewCode(diff, commitObj)
+	await aiService.reviewAll(diff, commitObj)
 }
 
 // 从webhook数据创建基本的diff信息
