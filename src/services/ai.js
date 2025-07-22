@@ -73,7 +73,6 @@ class AIService {
 			content += `提交信息: ${review.commitMessage}\n`
 			content += `作者: ${review.author?.name || 'Unknown'}\n`
 			content += `审查时间: ${review.timestamp}\n\n`
-			content += `总结: ${review.summary}\n\n`
 
       content += `详细建议:\n`
       content += `------------------------------------------\n\n`

@@ -1,10 +1,10 @@
 # AI代码审查工具 - 精简版
 
-一个简洁的AI代码审查工具，支持GitHub和GitLab的webhook，使用硅基流动AI进行代码审查，结果输出到本地txt文件。
+一个简洁的AI代码审查工具，支持GitHub的webhook，使用硅基流动AI进行代码审查，结果输出到本地txt文件。
 
 ## 功能特点
 
-- 🔍 支持GitHub和GitLab的push事件webhook
+- 🔍 支持GitHub的push事件webhook
 - 🤖 使用硅基流动AI进行智能代码审查
 - 📝 审查结果保存到本地txt文件
 - 🚀 轻量级，依赖少，易于部署
@@ -32,9 +32,6 @@ PORT=3000
 # GitHub配置 (可选，如果使用GitHub)
 GITHUB_TOKEN_AI=your-github-token
 
-# GitLab配置 (可选，如果使用GitLab)
-GITLAB_URL=https://gitlab.com
-GITLAB_TOKEN=your-gitlab-token
 
 # 硅基流动AI配置 (必须)
 SILICONFLOW_API_KEY=your-siliconflow-api-key
@@ -54,9 +51,6 @@ NODE_ENV=development
    - 访问 GitHub Settings > Developer settings > Personal access tokens
    - 创建token，需要`repo`权限
 
-3. **GitLab Token**（如果使用GitLab）：
-   - 访问 GitLab Settings > Access Tokens
-   - 创建token，需要`read_repository`权限
 
 ## 启动服务
 
@@ -79,14 +73,6 @@ npm start
 5. 选择 `Just the push event`
 6. 点击 Add webhook
 
-### GitLab设置
-
-1. 进入你的GitLab项目
-2. 点击 Settings > Webhooks
-3. 设置URL: `http://your-domain.com/webhook/gitlab`
-4. 选择 `Push events`
-5. 点击 Add webhook
-
 ## 使用方法
 
 1. 配置好webhook后，每次push代码时会自动触发审查
@@ -103,8 +89,6 @@ npm start
 提交信息: 修复用户登录bug
 作者: 张三
 审查时间: 2024-01-01T10:00:00.000Z
-
-总结: 代码审查完成，共发现 2 个建议需要关注。
 
 详细建议:
 ------------------------------------------
@@ -129,7 +113,6 @@ ai-code-review/
 │   └── services/
 │       ├── ai.js         # AI服务（硅基流动）
 │       ├── github.js     # GitHub API服务
-│       └── gitlab.js     # GitLab API服务
 ├── reviews/              # 审查结果目录（自动创建）
 ├── package.json
 └── README.md
