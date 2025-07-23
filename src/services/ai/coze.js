@@ -31,7 +31,7 @@ class CozeService extends BaseAIService {
 
 		// 保存请求消息
 		const messageContent = JSON.stringify(diffs)
-		await this.saveMessageToFile(messageContent, this.serviceName)
+		// await this.saveMessageToFile(messageContent, this.serviceName)
 
 		return new Promise((resolve, reject) => {
 			try {
@@ -64,7 +64,6 @@ class CozeService extends BaseAIService {
 						console.log('Coze智能体响应成功，开始处理流数据')
 						let buffer = '' // 用于拼接分块数据
 						let fullResponse = '' // 完整的AI响应
-
 						// 监听数据事件
 						result.data.on('data', (chunk) => {
 							buffer += chunk.toString()
@@ -79,7 +78,7 @@ class CozeService extends BaseAIService {
 								const trimmedLine = line.trim()
 								if (trimmedLine.startsWith('data:')) {
 									const data = trimmedLine.slice(5).trim()
-									
+
 									if (data === '[DONE]') {
 										console.log('SSE 流结束')
 										return
@@ -90,11 +89,15 @@ class CozeService extends BaseAIService {
 										console.dir(jsonData)
 										// 处理消息事件
 										if (jsonData.type === 'answer') {
-											if (jsonData.type && 
-												jsonData.role === 'assistant' && 
-												jsonData.type === 'answer') {
+											if (
+												jsonData.type &&
+												jsonData.role === 'assistant' &&
+												jsonData.type === 'answer'
+											) {
 												const content = jsonData.content || ''
-												fullResponse += content
+												if (content.includes('代码评级')) {
+													fullResponse += content
+												}
 											}
 										}
 									} catch (parseError) {
@@ -108,7 +111,7 @@ class CozeService extends BaseAIService {
 						// 监听流结束事件
 						result.data.on('end', async () => {
 							console.log('SSE 连接已结束')
-							
+
 							try {
 								const review = {
 									commitId: commit.id,
@@ -118,7 +121,7 @@ class CozeService extends BaseAIService {
 									suggestions: fullResponse || '未能获取有效的AI响应',
 									service: this.serviceName,
 								}
-                
+
 								await this.saveToFile(review)
 								console.log('代码审查完成')
 								resolve(review)
