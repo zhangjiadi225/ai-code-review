@@ -1,12 +1,13 @@
 # AI代码审查工具 - 精简版
 
-一个简洁的AI代码审查工具，支持GitHub的webhook，使用硅基流动AI进行代码审查，结果输出到本地txt文件。
+一个简洁的AI代码审查工具，支持GitHub的webhook，支持多种AI服务进行代码审查，结果输出到本地txt文件。
 
 ## 功能特点
 
 - 🔍 支持GitHub的push事件webhook
-- 🤖 使用硅基流动AI进行智能代码审查
+- 🤖 支持多种AI服务：硅基流动AI、Coze智能体
 - 📝 审查结果保存到本地txt文件
+- � 支量持动态切换AI服务
 - 🚀 轻量级，依赖少，易于部署
 
 ## 安装
@@ -32,10 +33,17 @@ PORT=3000
 # GitHub配置 (可选，如果使用GitHub)
 GITHUB_TOKEN_AI=your-github-token
 
+# AI服务类型 (siliconflow 或 coze)
+AI_SERVICE_TYPE=coze
 
-# 硅基流动AI配置 (必须)
+# 硅基流动AI配置
 SILICONFLOW_API_KEY=your-siliconflow-api-key
 SILICONFLOW_MODEL=deepseek-chat
+
+# Coze智能体配置
+COZE_API_URL=https://api.coze.cn/v3/chat
+COZE_API_KEY=your-coze-api-key
+COZE_BOT_ID=your-bot-id
 
 # 环境配置
 NODE_ENV=development
