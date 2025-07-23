@@ -1,72 +1,87 @@
-// 模拟GitHub webhook请求
-const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const aiService = require('../src/services/ai');
+const { simpleProcessGitHubCommit } = require('../src/routes/webhook');
+require('dotenv').config();
 
-// 模拟GitHub webhook的push事件数据
-const mockPushEvent = {
-  ref: 'refs/heads/main',
-  repository: {
-    id: 123456789,
-    name: 'ai-code-review',
-    full_name: 'zhangjiadi225/ai-code-review',
-    owner: {
-      name: 'zhangjiadi225',
-      login: 'zhangjiadi225',
-      email: 'jdzhang@in-road.com'
-    },
-    html_url: 'https://github.com/zhangjiadi225/ai-code-review'
+// 命令行参数处理
+const args = process.argv.slice(2);
+const serviceType = args[0] || 'siliconflow'; // 默认使用硅基流动AI
+
+// 切换到指定的AI服务
+try {
+  aiService.switchService(serviceType);
+  console.log(`使用 ${serviceType} 服务进行测试`);
+} catch (error) {
+  console.error(`切换到 ${serviceType} 服务失败:`, error.message);
+  process.exit(1);
+}
+
+// 模拟仓库信息
+const mockRepository = {
+  name: 'test-repo',
+  owner: {
+    login: 'test-user'
   },
-  commits: [
-    {
-      id: '6c94106f410779a6dd562687fe543b6159a306c4',
-      tree_id: 'bcbdd8971300696c02ebee27446cb2826e8a693b',
-      distinct: true,
-      message: '注释部分',
-      timestamp: '2025-07-21T17:31:02+08:00',
-      url: 'https://github.com/zhangjiadi225/ai-code-review/commit/6c94106f410779a6dd562687fe543b6159a306c4',
-      author: {
-        name: 'jdzhang',
-        email: 'jdzhang@in-road.com',
-        username: 'zhangjiadi-gz'
-      },
-      committer: {
-        name: 'jdzhang',
-        email: 'jdzhang@in-road.com',
-        username: 'zhangjiadi-gz'
-      },
-      added: [],
-      removed: [],
-      modified: ['src/routes/webhook.js']
-    }
-  ]
+  html_url: 'https://github.com/test-user/test-repo'
 };
 
-// 发送模拟请求
-async function sendMockWebhook() {
+// 从测试文件读取diff
+function loadTestDiff() {
   try {
-    console.log('发送模拟GitHub webhook请求...');
+    const diffPath = path.join(__dirname, 'test-ai-response.js');
+    const content = fs.readFileSync(diffPath, 'utf8');
     
-    const response = await axios.post('http://localhost:3000/webhook/github', mockPushEvent, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-GitHub-Event': 'push',
-        'X-GitHub-Delivery': `mock-${Date.now()}`
+    return [
+      {
+        oldPath: 'test/test-ai-response.js',
+        newPath: 'test/test-ai-response.js',
+        diff: content,
+        newFile: false,
+        deletedFile: false,
+        renamedFile: false,
+        status: 'modified'
       }
-    });
-    
-    console.log('响应状态码:', response.status);
-    console.log('响应数据:', response.data);
+    ];
   } catch (error) {
-    console.error('请求失败:', error.message);
-    if (error.response) {
-      console.error('响应状态码:', error.response.status);
-      console.error('响应数据:', error.response.data);
-    }
+    console.error('读取测试文件失败:', error);
+    process.exit(1);
   }
 }
 
-// 执行模拟请求
-sendMockWebhook().catch(console.error);
+// 模拟提交
+const mockCommit = {
+  id: 'test' + Date.now().toString().substring(5),
+  message: `测试提交 - ${serviceType} 服务`,
+  author: {
+    name: '测试用户',
+    email: 'test@example.com'
+  },
+  branch: 'main',
+  repository_name: mockRepository.name,
+  repository_url: mockRepository.html_url,
+  repository_owner: mockRepository.owner.login,
+  ref: 'refs/heads/main',
+  added: [],
+  modified: ['test/test-ai-response.js'],
+  removed: []
+};
 
-// 如何使用:
-// 1. 确保服务器已启动: node src/index.js
-// 2. 运行: node test/simulate-webhook.js
+// 模拟webhook处理
+async function simulateWebhook() {
+  try {
+    console.log(`模拟GitHub webhook处理 (服务类型: ${serviceType})`);
+    console.log(`提交ID: ${mockCommit.id}`);
+    console.log(`提交信息: ${mockCommit.message}`);
+    
+    // 处理提交
+    await simpleProcessGitHubCommit(mockRepository, mockCommit);
+    
+    console.log('模拟完成，请查看reviews目录中的审查结果');
+  } catch (error) {
+    console.error('模拟webhook处理失败:', error);
+  }
+}
+
+// 执行模拟
+simulateWebhook();

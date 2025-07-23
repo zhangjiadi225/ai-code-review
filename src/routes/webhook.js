@@ -207,5 +207,5 @@ function createBasicDiffFromWebhook(commit) {
 module.exports = {
 	router,
 	handleGitHubPush,
-	simpleProcessGitHubCommit
+	simpleProcessGitHubCommit,
 }
