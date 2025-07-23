@@ -1,5 +1,4 @@
 const express = require('express')
-const crypto = require('crypto')
 const githubService = require('../services/github')
 const aiService = require('../services/ai')
 const logger = require('../services/logger')
@@ -33,7 +32,7 @@ router.post('/github', async (req, res) => {
 
 		// 保存原始 webhook 数据
 		if (eventType === 'push') {
-			await logger.saveWebhookData('github_push', req.body)
+			// await logger.saveWebhookData('github_push', req.body)
 		}
 
 		// 处理push事件
