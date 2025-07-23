@@ -12,8 +12,6 @@ class CozeService extends BaseAIService {
 		this.apiKey = process.env.COZE_API_KEY
 		this.botId = process.env.COZE_BOT_ID
 		this.serviceName = 'coze'
-		this.retrieve = 'https://api.coze.cn/v3/chat/retrieve'
-		this.messageListURL = 'https://api.coze.cn/v3/chat/message/list'
 	}
 
 	/**
@@ -35,138 +33,119 @@ class CozeService extends BaseAIService {
 		const messageContent = JSON.stringify(diffs)
 		await this.saveMessageToFile(messageContent, this.serviceName)
 
-		try {
-			// 向Coze API发送请求，只发送diffs数据
-			const result = await axios.post(
-				this.baseURL,
-				{
-					bot_id: this.botId,
-					user_id: 1,
-					stream: false,
-					auto_save_history: true,
-					messages: [
+		return new Promise((resolve, reject) => {
+			try {
+				// 向Coze API发送请求，使用stream流
+				axios
+					.post(
+						this.baseURL,
 						{
-							role: 'user',
-							content: messageContent,
-							content_type: 'text',
+							bot_id: this.botId,
+							user_id: '1',
+							stream: true,
+							auto_save_history: false,
+							additional_messages: [
+								{
+									role: 'user',
+									content: messageContent,
+									content_type: 'text',
+								},
+							],
 						},
-					],
-				},
-				{
-					headers: {
-						Authorization: 'Bearer ' + this.apiKey,
-						'Content-Type': 'application/json',
-					},
-				}
-			)
-
-			console.log('Coze智能体响应成功')
-
-			// 调用查看对话接口，使用conversation_id和chat_id轮询检查状态
-			const { conversation_id, chat_id } = result.data
-
-			// 轮询检查聊天是否完成
-			let chatStatus = null
-			let suggestions = null
-			let maxRetries = 30
-			let retryCount = 0
-
-			while (
-				retryCount < maxRetries &&
-				(!chatStatus || chatStatus !== 'completed')
-			) {
-				try {
-					console.log(`正在检查聊天状态，第${retryCount + 1}次尝试...`)
-					const statusResponse = await axios.get(this.retrieve, {
-						headers: {
-							Authorization: 'Bearer ' + this.apiKey,
-						},
-						params: {
-							conversation_id,
-							chat_id,
-						},
-					})
-
-					chatStatus = statusResponse.data.status
-					console.log(`聊天状态: ${chatStatus}`)
-
-					if (chatStatus === 'completed') {
-						// 当状态为completed时，调用message/list接口获取完整响应
-						console.log('聊天已完成，获取完整响应...')
-						const messageListResponse = await axios.get(this.messageListURL, {
+						{
 							headers: {
 								Authorization: 'Bearer ' + this.apiKey,
+								'Content-Type': 'application/json',
 							},
-							params: {
-								conversation_id,
-								chat_id,
-							},
+							responseType: 'stream',
+						}
+					)
+					.then((result) => {
+						console.log('Coze智能体响应成功，开始处理流数据')
+						let buffer = '' // 用于拼接分块数据
+						let fullResponse = '' // 完整的AI响应
+
+						// 监听数据事件
+						result.data.on('data', (chunk) => {
+							buffer += chunk.toString()
+
+							// 按行分割处理SSE数据
+							const lines = buffer.split('\n')
+							// 保留最后一行，可能不完整
+							buffer = lines.pop() || ''
+
+							// 处理每个完整的行
+							lines.forEach((line) => {
+								const trimmedLine = line.trim()
+								if (trimmedLine.startsWith('data:')) {
+									const data = trimmedLine.slice(5).trim()
+									
+									if (data === '[DONE]') {
+										console.log('SSE 流结束')
+										return
+									}
+
+									try {
+										const jsonData = JSON.parse(data)
+										console.dir(jsonData)
+										// 处理消息事件
+										if (jsonData.type === 'answer') {
+											if (jsonData.type && 
+												jsonData.role === 'assistant' && 
+												jsonData.type === 'answer') {
+												const content = jsonData.content || ''
+												fullResponse += content
+											}
+										}
+									} catch (parseError) {
+										// 忽略JSON解析错误，继续处理其他数据
+										console.log('跳过无效JSON数据:', data.substring(0, 50))
+									}
+								}
+							})
 						})
 
-						// 从消息列表中获取最新的AI响应
-						if (
-							messageListResponse.data &&
-							messageListResponse.data.messages &&
-							messageListResponse.data.messages.length > 0
-						) {
-							// 找到最新的assistant消息
-							const assistantMessages =
-								messageListResponse.data.messages.filter(
-									(msg) => msg.role === 'assistant'
-								)
-
-							if (assistantMessages.length > 0) {
-								// 使用最新的assistant消息
-								suggestions =
-									assistantMessages[assistantMessages.length - 1].content
-								console.log('成功获取AI完整响应')
-							} else {
-								// 如果没有找到assistant消息，使用状态响应
-								suggestions = statusResponse.data.choices[0].message.content
-								console.log('未找到AI响应消息，使用状态响应')
+						// 监听流结束事件
+						result.data.on('end', async () => {
+							console.log('SSE 连接已结束')
+							
+							try {
+								const review = {
+									commitId: commit.id,
+									commitMessage: commit.message,
+									author: commit.author,
+									timestamp: new Date().toISOString(),
+									suggestions: fullResponse || '未能获取有效的AI响应',
+									service: this.serviceName,
+								}
+                
+								await this.saveToFile(review)
+								console.log('代码审查完成')
+								resolve(review)
+							} catch (saveError) {
+								console.error('保存审查结果失败:', saveError)
+								reject(saveError)
 							}
-						} else {
-							// 如果消息列表为空，使用状态响应
-							suggestions = statusResponse.data.choices[0].message.content
-							console.log('消息列表为空，使用状态响应')
-						}
-						break
-					}
+						})
 
-					// 等待一段时间再次检查
-					await new Promise((resolve) => setTimeout(resolve, 2000))
-					retryCount++
-				} catch (error) {
-					console.error('检查聊天状态失败:', error.message)
-					retryCount++
-					await new Promise((resolve) => setTimeout(resolve, 3000))
+						// 监听错误事件
+						result.data.on('error', (streamError) => {
+							console.error('SSE 流错误:', streamError)
+							reject(streamError)
+						})
+					})
+					.catch((requestError) => {
+						console.error('请求失败:', requestError.message)
+						reject(requestError)
+					})
+			} catch (error) {
+				console.error('Coze智能体请求失败:', error.message)
+				if (error.response) {
+					console.error('错误详情:', error.response.data)
 				}
+				reject(error)
 			}
-
-			// 如果轮询结束后仍未完成，使用原始响应
-			if (!suggestions) {
-				console.log('轮询超时，使用原始响应')
-				suggestions = result.data.choices[0].message.content
-			}
-
-			const review = {
-				commitId: commit.id,
-				commitMessage: commit.message,
-				author: commit.author,
-				timestamp: new Date().toISOString(),
-				suggestions: suggestions,
-				service: this.serviceName,
-			}
-
-			await this.saveToFile(review)
-			return review
-		} catch (error) {
-			console.error('Coze智能体请求失败:', error.message)
-			if (error.response) {
-				console.error('错误详情:', error.response.data)
-			}
-			throw error
-		}
+		})
 	}
 }
 
