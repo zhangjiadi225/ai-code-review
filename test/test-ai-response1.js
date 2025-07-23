@@ -1,275 +1,71 @@
-/**
- * 页面级水印工具
- * 自动获取用户信息生成水印：姓名+手机尾号后四位
- */
-class PageWaterMark {
-	constructor() {
-		this.waterMarkId = 'page-watermark-container'
-		this.observer = null
-		this.isActive = false
-	}
-
-	/**
-	 * 获取用户信息
-	 * @returns {Object} 用户信息对象
-	 */
-	getUserInfo = () => {
-		// 从uni存储获取用户信息
-		const accountName = 'accountName'
-		const userPhone = 'userPhone'
-
-		return {
-			name: accountName,
-			phone: userPhone,
-		}
-	}
-
-	/**
-	 * 生成水印文字
-	 * @returns {string} 格式化的水印文字
-	 */
-	generateWaterMarkText = () => {
-		const { name, phone } = this.getUserInfo()
-
-		if (!name && !phone) {
-			return '未登录用户'
-		}
-
-		let waterMarkText = name || '未知用户'
-
-		// 如果有手机号，添加后四位
-		if (phone && phone.length >= 4) {
-			const lastFour = phone.slice(-4)
-			waterMarkText += ` ${lastFour}`
-		}
-
-		return waterMarkText
-	}
-
-	/**
-	 * 创建水印背景图
-	 * @param {Object} options - 样式选项
-	 * @returns {string} base64 图片数据
-	 */
-	createWaterMarkImage = (options = {}) => {
-		const { fontSize, fontFamily, color, width, height, rotate } = options
-
-		const text = this.generateWaterMarkText()
-		const canvas = document.createElement('canvas')
-		const ctx = canvas.getContext('2d')
-
-		// 获取设备像素比，提高清晰度
-		const devicePixelRatio = window.devicePixelRatio || 1
-		const canvasWidth = width * devicePixelRatio
-		const canvasHeight = height * devicePixelRatio
-
-		canvas.width = canvasWidth
-		canvas.height = canvasHeight
-		canvas.style.width = `${width}px`
-		canvas.style.height = `${height}px`
-
-		// 缩放上下文以匹配设备像素比
-		ctx.scale(devicePixelRatio, devicePixelRatio)
-
-		// 设置字体抗锯齿
-		ctx.textRenderingOptimization = 'optimizeQuality'
-		ctx.font = `${fontSize} ${fontFamily}`
-		ctx.fillStyle = color
-		ctx.textAlign = 'center'
-		ctx.textBaseline = 'middle'
-		ctx.shadowColor = 'rgba(0,0,0,0.6)'
-		ctx.shadowOffsetX = 5
-		ctx.shadowOffsetY = 0
-		ctx.shadowBlur = 2
-
-		// 旋转画布
-		ctx.translate(width / 2, height / 2)
-		ctx.rotate((rotate * Math.PI) / 180)
-		ctx.fillText(text, 0, 0)
-
-		return canvas.toDataURL('image/png')
-	}
-
-	/**
-	 * 添加页面水印
-	 * @param {Object} options - 配置选项
-	 */
-	show = (options = {}) => {
-		// 如果已经存在，先移除
-		this.hide()
-
-		const {
-			fontSize = '14px',
-			color = 'rgba(255,255,255,0.10)',
-			width = 140,
-			height = 140,
-			rotate = -16,
-			zIndex = 9999,
-			monitor = true,
-		} = options
-
-		const waterMarkDataUrl = this.createWaterMarkImage({
-			fontSize,
-			color,
-			width,
-			height,
-			rotate,
-		})
-
-		const waterMarkDiv = document.createElement('div')
-		waterMarkDiv.id = this.waterMarkId
-
-		const styles = {
-			position: 'fixed',
-			top: '0',
-			left: '0',
-			width: '100%',
-			height: '100%',
-			zIndex: zIndex,
-			pointerEvents: 'none',
-			backgroundImage: `url(${waterMarkDataUrl})`,
-			backgroundRepeat: 'repeat',
-			backgroundSize: `${width}px ${height}px`,
-		}
-
-		Object.assign(waterMarkDiv.style, styles)
-		document.body.appendChild(waterMarkDiv)
-
-		this.isActive = true
-
-		// 开启监控
-		if (monitor) {
-			this.startMonitor(options)
-		}
-	}
-
-	/**
-	 * 移除页面水印
-	 */
-	hide = () => {
-		// 查找所有水印
-		const waterMarkElements = document.querySelectorAll(`#${this.waterMarkId}`)
-		waterMarkElements.forEach((element) => {
-			element.remove()
-		})
-
-		this.isActive = false
-
-		// 停止监控
-		if (this.observer) {
-			this.observer.disconnect()
-			this.observer = null
-		}
-	}
-
-	/**
-	 * 刷新水印（用户信息变更后）
-	 * @param {Object} options - 配置选项
-	 */
-	refresh = (options = {}) => {
-		if (this.isActive) {
-			this.show(options)
-		}
-	}
-
-	/**
-	 * 开始监控水印
-	 * @param {Object} options - 配置选项
-	 */
-	startMonitor = (options) => {
-		if (!window.MutationObserver) {
-			return
-		}
-
-		this.observer = new MutationObserver((mutations) => {
-			let needRestore = false
-
-			mutations.forEach((mutation) => {
-				if (mutation.type === 'childList') {
-					mutation.removedNodes.forEach((node) => {
-						if (node.nodeType === 1 && node.id === this.waterMarkId) {
-							needRestore = true
-						}
-					})
-				}
-
-				if (mutation.type === 'attributes' && mutation.target.id === this.waterMarkId) {
-					needRestore = true
-				}
-			})
-
-			if (needRestore && this.isActive) {
-				this.observer.disconnect()
-				this.show(options)
-			}
-		})
-
-		this.observer.observe(document.body, {
-			childList: true,
-			subtree: true,
-			attributes: true,
-			attributeFilter: ['style', 'class'],
-		})
-	}
-
-	/**
-	 * 检查水印是否激活
-	 * @returns {boolean} 是否激活
-	 */
-	isShow = () => {
-		return this.isActive && document.getElementById(this.waterMarkId) !== null
-	}
-
-	/**
-	 * 获取当前水印文字
-	 * @returns {string} 当前水印文字
-	 */
-	getCurrentText = () => {
-		return this.generateWaterMarkText()
-	}
-}
-
-// 创建全局实例
-const pageWaterMark = new PageWaterMark()
-
-/**
- * 显示页面水印
- * @param {Object} options - 配置选项
- */
-export const showWaterMark = (options = {}) => {
-	pageWaterMark.show(options)
-}
-
-/**
- * 隐藏页面水印
- */
-export const hideWaterMark = () => {
-	pageWaterMark.hide()
-}
-
-/**
- * 刷新页面水印（用户信息变更后调用）
- * @param {Object} options - 配置选项
- */
-export const refreshWaterMark = (options = {}) => {
-	pageWaterMark.refresh(options)
-}
-
-/**
- * 检查水印是否显示
- * @returns {boolean} 是否显示
- */
-export const isWaterMarkShow = () => {
-	return pageWaterMark.isShow()
-}
-
-/**
- * 获取当前水印文字
- * @returns {string} 当前水印文字
- */
-export const getWaterMarkText = () => {
-	return pageWaterMark.getCurrentText()
-}
-
-// 默认导出
-export default pageWaterMark
+/* eslint-disable */
+function getIdCardArea(idcard) { // 获取身份证区域
+    var area = { 11: "北京", 12: "天津", 13: "河北", 14: "山西", 15: "内蒙古", 21: "辽宁", 22: "吉林", 23: "黑龙江", 31: "上海", 32: "江苏", 33: "浙江", 34: "安徽", 35: "福建", 36: "江西", 37: "山东", 41: "河南", 42: "湖北", 43: "湖南", 44: "广东", 45: "广西", 46: "海南", 50: "重庆", 51: "四川", 52: "贵州", 53: "云南", 54: "西藏", 61: "陕西", 62: "甘肃", 63: "青海", 64: "宁夏", 65: "新疆", 71: "台湾", 81: "香港", 82: "澳门" };
+    var Y, JYM;
+    var S, M;
+    var idcard_array = new Array();
+    idcard_array = idcard.split("");
+    // 地区检验
+    if (area[parseInt(idcard.substr(0, 2))] == null) {
+      return false
+    } else {
+      return area[parseInt(idcard.substr(0, 2))]
+    }
+ }
+ 
+ export function isIdCard(idcard) { // 身份证号是否有效
+   if (typeof idcard !== 'string') {
+     console.error('type error! idcard must be string')
+     return false
+   }
+   var Errors = [ "ok",
+                  "身份证号码位数不对!",
+                  "身份证号码出生日期超出范围或含有非法字符!",
+                  "身份证号码校验错误!",
+                  "身份证地区非法!" ];
+   var Y, JYM;
+   var S, M;
+   var idcard_array = new Array();
+   idcard_array = idcard.split("");
+   var reg = '';
+   //地区检验
+   if (getIdCardArea(idcard) == false) return Errors[4];
+ 
+   //身份号码位数及格式检验
+   switch (idcard.length) {
+      case 18:
+         //18位身份号码检测
+         //出生日期的合法性检查
+         //闰年月日:((01|03|05|07|08|10|12)(0[1-9]|[1-2][0-9]|3[0-1])|(04|06|09|11)(0[1-9]|[1-2][0-9]|30)|02(0[1-9]|[1-2][0-9]))
+         //平年月日:((01|03|05|07|08|10|12)(0[1-9]|[1-2][0-9]|3[0-1])|(04|06|09|11)(0[1-9]|[1-2][0-9]|30)|02(0[1-9]|1[0-9]|2[0-8]))
+         //加权因子
+         var factor = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+         if(parseInt(idcard.substr(6, 4)) % 4 == 0 ||
+             (parseInt(idcard.substr(6, 4)) % 100 == 0 &&
+               parseInt(idcard.substr(6, 4)) % 4 == 0)) {
+             reg = /^[1-9][0-9]{5}(19|20)[0-9]{2}((01|03|05|07|08|10|12)(0[1-9]|[1-2][0-9]|3[0-1])|(04|06|09|11)(0[1-9]|[1-2][0-9]|30)|02(0[1-9]|[1-2][0-9]))[0-9]{3}[0-9Xx]$/; //闰年出生日期的合法性正则表达式
+         } else {
+             reg = /^[1-9][0-9]{5}(19|20)[0-9]{2}((01|03|05|07|08|10|12)(0[1-9]|[1-2][0-9]|3[0-1])|(04|06|09|11)(0[1-9]|[1-2][0-9]|30)|02(0[1-9]|1[0-9]|2[0-8]))[0-9]{3}[0-9Xx]$/; //平年出生日期的合法性正则表达式
+         }
+         if(reg.test(idcard)) { //测试出生日期的合法性
+              //计算校验位
+              S = 0
+              for (let i = 0; i < 17; i++) {
+                S += parseInt(idcard_array[i]) * parseInt(factor[i])
+              }
+              Y = S % 11;
+              M = "F";
+              JYM = "10X98765432";
+              M = JYM.substr(Y, 1); //判断校验位
+              if (M == idcard_array[17]) {
+                return Errors[0]; //检测ID的校验位
+              }
+              else return Errors[3];
+         }
+         else return Errors[2];
+         break;
+      default:
+         return Errors[1]; break;
+    }
+    return true;
+ }
